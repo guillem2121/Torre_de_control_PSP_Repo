@@ -6,7 +6,7 @@ package org.yourcompany.yourproject;
 
 /**
  *
- * @author Alumno
+ * @author Guillermo Martin, Olga Marco y Bruno Coloma.
  */
 public class TorreDeControl {
 
