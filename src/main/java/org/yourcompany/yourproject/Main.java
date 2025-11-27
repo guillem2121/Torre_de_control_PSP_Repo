@@ -20,5 +20,21 @@ public class Main {
 
     public static void main(String[] args) {
         System.out.println("Hello World!");
-    }
+    } 
+
+    //for con 5 aviones
+    //for con 10 aviones 
 }
+
+/*
+* clase pista
+* clase despegue extends Runnable
+* clase aterrizaje extends Runnable
+* clase torre de control (semaforo con synchronized)
+*/
+
+
+
+
+
+
