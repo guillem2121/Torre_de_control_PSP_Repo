@@ -8,7 +8,7 @@ package org.yourcompany.yourproject;
  *
  * @author Guillermo Martin, Olga Marco y Bruno Coloma.
  */
-public class TorreDeControl {
+public class Main {
 
     public static void main(String[] args) {
         System.out.println("Hello World!");
