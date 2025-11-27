@@ -1,5 +1,4 @@
 package org.yourcompany.yourproject;
-
-public class Pista {
-   
+public class TorreDeControl {
+    
 }
