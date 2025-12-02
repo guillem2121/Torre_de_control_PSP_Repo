@@ -6,7 +6,9 @@
     <version>1.0-SNAPSHOT</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.release>25</maven.compiler.release>
+        <!-- CAMBIO AQUÍ: De 25 a 21 -->
+        <maven.compiler.release>21</maven.compiler.release>
+        <!-- OJO CON ESTO (Leer nota abajo) -->
         <exec.mainClass>org.yourcompany.yourproject.ProjectName</exec.mainClass>
     </properties>
 </project>
