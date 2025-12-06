@@ -9,6 +9,32 @@
         <!-- CAMBIO AQUÍ: De 25 a 21 -->
         <maven.compiler.release>21</maven.compiler.release>
         <!-- OJO CON ESTO (Leer nota abajo) -->
-        <exec.mainClass>org.yourcompany.yourproject.ProjectName</exec.mainClass>
+        <exec.mainClass>org.yourcompany.yourproject.Main</exec.mainClass>
     </properties>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <release>21</release>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <mainClass>org.yourcompany.yourproject.Main</mainClass>
+                    <systemProperties>
+                        <systemProperty>
+                            <key>sun.stdout.encoding</key>
+                            <value>UTF-8</value>
+                        </systemProperty>
+                    </systemProperties>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

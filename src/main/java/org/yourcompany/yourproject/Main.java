@@ -1,128 +1,152 @@
 package org.yourcompany.yourproject;
 
-import java.util.concurrent.Semaphore;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- *
- * @author Guillermo Martin, Olga Marco y Bruno Coloma.
- */
-
-/*
-Simular un aeropuerto con 2 pistas de aterrizaje/despegue (son un recurso
-compartido). Hay 10 hilos "Avión" que quieren despegar y 5 hilos "Avión" que
-quieren aterrizar.
-1. Un avión (hilo) necesita adquirir una pista de forma exclusiva para su
-operación (aterrizar o despegar).
-2. Ambas operaciones (aterrizar y despegar) tardan un tiempo simulado (ej. 5
-segundos).
-3. Prioridad: Aterrizar siempre tiene prioridad sobre despegar. Un avión que
-quiere despegar no debe hacerlo si hay un avión (aunque haya llegado
-después) esperando para aterrizar.
-*/
-
-/* 
-* 
-* clase despegue extends Runnable
-* clase aterrizaje extends Runnable
-* clase torre de control (semaforo con synchronized)  -> usar semaforo de torre de control y asignar 2 con prioridad en aterrizaje
-*/
 public class Main {
-        public static void main(String[] args) {
+    public static void main(String[] args) {
+        // Total de aviones en la simulación
+        final int TOTAL_AVIONES_ATERRIZAJE = 5;
+        final int TOTAL_AVIONES_DESPEGUE = 10;
+        final int TOTAL_AVIONES = TOTAL_AVIONES_ATERRIZAJE + TOTAL_AVIONES_DESPEGUE;
 
-        TorreDeControl torreDeControl = new TorreDeControl();
-        for (int i = 0; i < 5; i++) {
-            new Thread(new Aterrizaje(torreDeControl)).start();
+        TorreDeControl torreDeControl = new TorreDeControl(TOTAL_AVIONES_ATERRIZAJE, TOTAL_AVIONES);
+        List<Thread> aviones = new ArrayList<>();
+        int avionIdContador = 1;
+
+        // Crear 5 aviones para aterrizar
+        for (int i = 0; i < TOTAL_AVIONES_ATERRIZAJE; i++) {
+            Thread avionThread = new Thread(new Avion(avionIdContador++, Avion.Tipo.ATERRIZAJE, torreDeControl));
+            aviones.add(avionThread);
         }
-        for (int i = 0; i < 10; i++) {
-            new Thread(new Despegue(torreDeControl)).start();
+
+        // Crear 10 aviones para despegar
+        for (int i = 0; i < TOTAL_AVIONES_DESPEGUE; i++) {
+            Thread avionThread = new Thread(new Avion(avionIdContador++, Avion.Tipo.DESPEGUE, torreDeControl));
+            aviones.add(avionThread);
         }
-    }
-}
 
-class Aterrizaje implements Runnable {
-    private TorreDeControl torreDeControl;
-
-    public Aterrizaje(TorreDeControl torreDeControl) {
-        this.torreDeControl = torreDeControl;
-    }
-
-    @Override
-    public void run() {
-        // Lógica para aterrizar un avión
-        try {
-            torreDeControl.aterrizar();
-            //System.out.println("Avión aterrizado");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        // Iniciar todos los hilos
+        for (Thread t : aviones) {
+            t.start();
         }
-    }
-}
 
-class Despegue implements Runnable {
-    private TorreDeControl torreDeControl;
-
-    public Despegue(TorreDeControl torreDeControl) {
-        this.torreDeControl = torreDeControl;
-    }
-
-    @Override
-    public void run() {
-        // Lógica para despegar un avión 
-        try {
-            torreDeControl.despegar();
-            //System.out.println("Avión despegado");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        // Esperar a que todos los hilos terminen
+        for (Thread t : aviones) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                e.printStackTrace();
+            }
         }
+        
+        System.out.println("Ya no quedan aviones en la simulación.");
     }
 }
 
 class TorreDeControl {
-    private Semaphore pista = new Semaphore(2);
-    private int avionesAterrizandoEsperando = 0;
+    private final int TOTAL_ATERRZAJES_ESPERADOS;
+    private final int TOTAL_AVIONES_SIMULACION;
+    private final AtomicInteger aterrizajesCompletados = new AtomicInteger(0);
+    private final AtomicInteger avionesProcesados = new AtomicInteger(0);
 
-   public void aterrizar() throws InterruptedException {
-        // PASO 1: Avisar que llego (Rápido y exclusivo)
-        synchronized (this) {
-            avionesAterrizandoEsperando++;
-        }
+    private final BlockingQueue<String> pistasDisponibles;
+    private final Map<String, Integer> estadoPistas = new ConcurrentHashMap<>();
+    private final Object printLock = new Object();
 
-        // PASO 2: La acción (Lenta y paralela)
-        // Esto está FUERA del synchronized para que 2 aviones puedan hacerlo a la vez
-        pista.acquire(); 
+    public TorreDeControl(int totalAterrizajes, int totalAviones) {
+        this.TOTAL_ATERRZAJES_ESPERADOS = totalAterrizajes;
+        this.TOTAL_AVIONES_SIMULACION = totalAviones;
+        pistasDisponibles = new ArrayBlockingQueue<>(2);
+        pistasDisponibles.add("PISTA 1");
+        pistasDisponibles.add("PISTA 2");
+    }
+
+    public void solicitarAterrizaje(int idAvion) throws InterruptedException {
+        String pistaAsignada = pistasDisponibles.take();
+        
         try {
-            System.out.println("Avión ATERRIZANDO... (Pistas ocupadas: " + (2 - pista.availablePermits()) + ")");
-            Thread.sleep(5000); // Simular tiempo
-            System.out.println("Avión ATERRIZADO.");
+            synchronized (printLock) {
+                estadoPistas.put(pistaAsignada, idAvion);
+                System.out.println("AVION " + idAvion + " aterrizando en " + pistaAsignada);
+                
+                // Lógica de impresión condicional
+                if (estadoPistas.size() == 2 || (avionesProcesados.get() == TOTAL_AVIONES_SIMULACION - 1 && estadoPistas.size() == 1)) {
+                    imprimirEstadoPistas();
+                }
+            }
+
+            Thread.sleep(5000);
+
         } finally {
-            pista.release(); // Soltamos la pista antes de avisar a la torre
-            
-            // PASO 3: Avisar que me voy (Rápido y exclusivo)
-            synchronized (this) {
-                avionesAterrizandoEsperando--;
-                notifyAll(); // <--- ¡CRUCIAL! Despierta a los despegues dormidos
+            synchronized (printLock) {
+                estadoPistas.remove(pistaAsignada);
+                pistasDisponibles.put(pistaAsignada);
+                avionesProcesados.incrementAndGet();
+                
+                if (aterrizajesCompletados.incrementAndGet() == TOTAL_ATERRZAJES_ESPERADOS) {
+                    printLock.notifyAll();
+                }
+                System.out.println("AVION " + idAvion + " aterrizado.");
             }
         }
     }
 
-    public void despegar() throws InterruptedException {
-        // PASO 1: Pedir permiso al "gorila" (Rápido y exclusivo)
-        synchronized (this) {
-            // Mientras haya alguien queriendo aterrizar, yo espero.
-            while (avionesAterrizandoEsperando > 0) {
-                wait(); // Suelta el candado y se duerme hasta que alguien haga notifyAll
+    public void solicitarDespegue(int idAvion) throws InterruptedException {
+        synchronized (printLock) {
+            while (aterrizajesCompletados.get() < TOTAL_ATERRZAJES_ESPERADOS) {
+                printLock.wait();
             }
         }
 
-        // PASO 2: La acción (Lenta y paralela)
-        // Si pasé el while, significa que tengo permiso para intentar coger pista
-        pista.acquire();
+        String pistaAsignada = pistasDisponibles.take();
+        
         try {
-            System.out.println("Avión DESPEGANDO... (Pistas ocupadas: " + (2 - pista.availablePermits()) + ")");
-            Thread.sleep(5000); 
-            System.out.println("Avión DESPEGADO.");
+            synchronized(printLock) {
+                estadoPistas.put(pistaAsignada, idAvion);
+                System.out.println("AVION " + idAvion + " despegando en " + pistaAsignada);
+                
+                // Lógica de impresión condicional
+                if (estadoPistas.size() == 2 || (avionesProcesados.get() == TOTAL_AVIONES_SIMULACION - 1 && estadoPistas.size() == 1)) {
+                    imprimirEstadoPistas();
+                }
+            }
+
+            Thread.sleep(5000);
+
         } finally {
-            pista.release();
+            synchronized(printLock) {
+                estadoPistas.remove(pistaAsignada);
+                pistasDisponibles.put(pistaAsignada);
+                avionesProcesados.incrementAndGet();
+                System.out.println("AVION " + idAvion + " ha despegado (volado).");
+            }
         }
+    }
+
+    private void imprimirEstadoPistas() {
+        int ocupadas = estadoPistas.size();
+        String avionesEnPistaStr = "ninguno";
+
+        if (ocupadas > 0) {
+            List<String> descripciones = new ArrayList<>();
+            List<String> pistasOrdenadas = new ArrayList<>(estadoPistas.keySet());
+            Collections.sort(pistasOrdenadas);
+            
+            for(String pista : pistasOrdenadas) {
+                descripciones.add("AVION" + estadoPistas.get(pista) + " en " + pista);
+            }
+            avionesEnPistaStr = String.join(" y ", descripciones);
+        }
+
+        System.out.println("-> Pistas ocupadas: " + ocupadas + " por " + avionesEnPistaStr);
+        System.out.println("---------------------------------------------------------------------");
     }
 }
