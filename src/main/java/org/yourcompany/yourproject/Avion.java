@@ -11,7 +11,8 @@ public class Avion implements Runnable {
     private Tipo tipo;
     private TorreDeControl torreDeControl;
 
-    public Avion(int id, Tipo tipo, TorreDeControl torreDeControl) {
+    public Avion(int id, Tipo tipo, TorreDeControl torreDeControl) { 
+        //Constructor que inicializa el objeto avion
         this.id = id;
         this.tipo = tipo;
         this.torreDeControl = torreDeControl;
@@ -19,6 +20,7 @@ public class Avion implements Runnable {
 
     @Override
     public void run() {
+        //Metodo run para iniciar la accion del hilo avion
         try {
             if (tipo == Tipo.ATERRIZAJE) {
                 torreDeControl.solicitarAterrizaje(id);
